@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Indices Treemap</title>
+
+    <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-bundle.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #343a40;
+            color: #ffffff;
+        }
+        #treemap {
+            width: 100%;
+            height: 80vh;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <form action="{% url 'search_market_data' %}" method="get" class="d-flex justify-content-center my-4">
+            <input type="text" name="query" class="form-control w-50" placeholder="Search market data..." required>
+            <button type="submit" class="btn btn-primary ml-2">Search</button>
+        </form>
+
+        <div id="treemap"></div>
+    </div>
+
+    <script>
+        const data = [
+            { 
+                name: "Market Indices", 
+                children: [
+                    {% for index in indices %}
+                    {
+                        name: "{{ index.code }} [{{ index.constituents }}]",
+                        value: Math.abs(parseFloat("{{ index.daily_return|default:0 }}")) || 0,
+                        originalValue: parseFloat("{{ index.daily_return|default:0 }}"),
+                        id: {{ forloop.counter }},
+                        link: "/constituents/{{ index.index_id }}/",
+                        description: "Constituents: {{ index.constituents }}"
+                    },
+                    {% endfor %}
+                ]
+            }
+        ];
+
+        anychart.onDocumentReady(function() {
+            const chart = anychart.treeMap(data, "as-tree");
+
+            chart.background().fill("#343a40");
+
+            const colorScale = anychart.scales.linearColor();
+            colorScale.colors(["#d73027", "#fee08b", "#1a9850"]);
+            chart.colorScale(colorScale);
+
+            chart.labels()
+                .fontColor("#ffffff")
+                .fontSize(function() {
+                    return this.getData("value") > 100 ? 16 : 12;
+                })
+                .hAlign("center")
+                .vAlign("middle")
+                .format("{%name}");
+
+            chart.tooltip()
+                .useHtml(true)
+                .format(function() {
+                    return `<strong>${this.getData('name')}</strong><br>
+                            Value: ${this.getData('originalValue')}<br>
+                            Link: <a href="${this.getData('link')}" target="_blank">${this.getData('link')}</a>`;
+                });
+
+            chart.hovered()
+                .fill(anychart.color.lighten("#007bff", 0.4))
+                .stroke("#d3d3d3");
+
+            chart.listen("pointClick", function(e) {
+                const link = e.point.get("link");
+                if (link) {
+                    window.location.href = link;
+                }
+            });
+
+            chart.maxDepth(null);
+
+            chart.padding(10, 10, 10, 10);
+            chart.stroke("#ffffff");
+            chart.minHeight(5);
+            chart.minWidth(5);
+
+            chart.labels().fontSize(11);
+
+            chart.data(data);
+            chart.container("treemap");
+            chart.draw();
+        });
+    </script>
+</body>
+</html>
